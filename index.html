@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unknown Code Creator</title>
+    <!-- Google Fonts & Material Symbols -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+
+    <!-- Libs CSS -->
+    <!-- <link rel="stylesheet" href="{{ url_for('static', filename='libs/atom-one-dark.min.css') }}"> <!-- Highlight.js Theme -->
+
+    <!-- Main Stylesheet -->
+    <!---- <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"> -->
+    <!-- NEW Relative Links for Static Hosting -->
+    <link rel="stylesheet" href="static/libs/atom-one-dark.min.css">
+    <link rel="stylesheet" href="static/css/style.css">
+
+    <!-- REMOVED Monaco Loader script from head -->
+
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <!-- Auth Section -->
+            <div class="sidebar-section card" id="auth-section">
+                <h2><span class="material-symbols-outlined">login</span> Account</h2>
+                <div id="logged-out-view">
+                    <form id="login-form" novalidate>
+                        <div class="form-group">
+                            <label for="email">Email</label>
+                            <input type="email" id="email" required autocomplete="email">
+                        </div>
+                        <div class="form-group">
+                            <label for="password">Password</label>
+                            <input type="password" id="password" required autocomplete="current-password">
+                        </div>
+                        <div style="display: flex; gap: 8px; margin-top: 8px;">
+                            <button type="submit" class="button-filled" disabled>Login</button>
+                            <button type="button" id="signup-button" class="button-outlined" disabled>Sign Up</button>
+                        </div>
+                    </form>
+                    <p id="auth-error" class="error-message" style="display: none; margin-top: 10px;"></p>
+                </div>
+                <div id="logged-in-view" style="display: none;">
+                    <p>Welcome, <strong id="user-email-display"></strong>!</p>
+                    <button id="logout-button" class="button-danger" style="margin-top: 10px; width: 100%;">Logout</button>
+                </div>
+            </div>
+
+            <!-- Project Actions Section -->
+             <div class="sidebar-section card" id="project-actions-section" style="display: none;">
+                 <h2><span class="material-symbols-outlined">folder_open</span> New / Upload</h2>
+                 <form id="upload-form">
+                    <label class="file-upload-label">
+                        <span class="material-symbols-outlined">upload</span>
+                        <span>Upload Project (.zip)</span>
+                        <input type="file" id="project-zip-input" name="project_zip" accept=".zip" class="visually-hidden">
+                    </label>
+                    <button type="submit" class="button-filled hidden">Confirm Upload</button>
+                 </form>
+                <div class="start-new-options" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--md-sys-color-outline-variant);">
+                    <h4><span class="material-symbols-outlined">post_add</span> Or Start New:</h4>
+                    <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px;">
+                         <button id="start-scratch-button" class="button-outlined"><span class="material-symbols-outlined">add</span> Blank Project</button>
+                         <button id="start-python-button" class="button-outlined" data-template="python-app"><span class="material-symbols-outlined">code</span> Python App Template</button>
+                         <button id="start-web-button" class="button-outlined" data-template="web-app"><span class="material-symbols-outlined">web</span> Web App Template</button>
+                    </div>
+                </div>
+                <p id="file-status" class="status-message"></p>
+            </div>
+
+             <!-- User Sessions Section -->
+            <div class="sidebar-section card" id="user-sessions-section" style="display: none;">
+                 <h2><span class="material-symbols-outlined">list</span> Your Sessions</h2>
+                 <ul id="user-session-list" style="max-height: 200px; overflow-y: auto;"></ul>
+                 <p id="session-list-status" class="status-message">Loading sessions...</p>
+            </div>
+
+            <!-- Timeline Section -->
+            <div class="sidebar-section card" id="timeline-section" style="display: none;">
+                <h2><span class="material-symbols-outlined">history</span> Timeline</h2>
+                <ul id="timeline-log"></ul>
+            </div>
+
+            <!-- Actions Section -->
+             <div class="sidebar-section card" id="session-actions-section" style="display: none;">
+                 <h2><span class="material-symbols-outlined">settings</span> Session Actions</h2>
+                 <div class="action-buttons-container">
+                    <button id="halt-button" class="button-danger" disabled>
+                        <span class="material-symbols-outlined">pan_tool</span> Halt Process
+                    </button>
+                     <div class="download-actions">
+                        <h4><span class="material-symbols-outlined">download</span> Download:</h4>
+                        <button id="download-all-button" class="button-tonal" disabled>
+                            <span class="material-symbols-outlined">folder_zip</span> All Files (.zip)
+                        </button>
+                        <button id="download-changed-button" class="button-tonal" disabled>
+                            <span class="material-symbols-outlined">difference</span> Changed Files (.zip)
+                        </button>
+                     </div>
+                 </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <h1><span class="material-symbols-outlined title-text", style="font-size: 2.5rem; vertical-align: bottom;">auto_awesome</span> <span class="title-text">Unknown Code Creator</span> <span class ="beta-badge">Alpha</span></h1>
+             <p id="session-id-display" class="status-message session-id"></p>
+             <div id="error-display" class="error-message" style="display: none;">
+                 <span class="material-symbols-outlined">error</span>
+                 <span class="message-text"></span>
+             </div>
+             <div id="loading-indicator" class="loading-indicator" style="display: none;">
+                 <span class="material-symbols-outlined spin">progress_activity</span> Working...
+             </div>
+             <div id="no-session-active" class="card" style="text-align: center; padding: 30px; display: none;">
+                 Please log in and select a session, or upload/start a new project.
+             </div>
+             <div id="session-content-area" style="display: none;">
+                 <section id="code-gen-section" class="card">
+                     <h2><span class="material-symbols-outlined">magic_button</span> Request Change</h2>
+                     <div class="form-group">
+                         <textarea id="request-input" placeholder="Describe the feature to add or the bug to fix..." disabled></textarea>
+                     </div>
+                     <button id="request-button" class="button-filled" disabled>
+                         <span class="material-symbols-outlined">auto_fix</span> Make Changes With AI
+                     </button>
+                     <div id="generation-results" style="display: none;">
+                         <h3 class="results-title"><span class="material-symbols-outlined">lightbulb</span> Generation Results:</h3>
+                         <div id="summary-display" class="result-section"></div>
+                         <div id="instructions-display" class="result-section"></div>
+                         <div id="generated-files-display" class="result-section"></div>
+                     </div>
+                 </section>
+
+                 <section id="output-files-section" class="card">
+                     <h2><span class="material-symbols-outlined">list_alt</span> Current Project Files</h2>
+                     <ul id="output-file-list"></ul>
+                     <p id="output-file-status" class="status-message">Select a session to view files.</p>
+                 </section>
+
+                 <section id="chat-section" class="card">
+                     <h2><span class="material-symbols-outlined">forum</span> Chat About Code</h2>
+                     <div id="chat-window">
+                         <p class="chat-placeholder">Session context will appear here...</p>
+                     </div>
+                     <div class="chat-input-area">
+                         <div class="form-group" style="flex-grow: 1;">
+                             <input type="text" id="chat-input" placeholder="Ask about the current code..." disabled>
+                         </div>
+                         <button id="chat-send-button" class="icon-button" disabled title="Send Message">
+                             <span class="material-symbols-outlined">send</span>
+                         </button>
+                     </div>
+                     
+                 </section>
+                 
+             </div> <!-- End session-content-area -->
+             
+             <footer style="text-align: center; margin-top: 20px; color: var(--md-sys-color-outline-variant); font-size: 0.9rem;">
+                 &copy; Rishi Patwardhan 2025
+             </footer>
+             
+        </main>
+        
+    </div> <!-- End app-container -->
+    
+    <!-- File Detail Modal -->
+    <div id="file-detail-overlay" class="modal-overlay" style="display: none;">
+        <section id="file-detail-section" class="modal-content">
+             <div class="modal-header">
+                 <h2 id="detail-file-name">File Details</h2>
+                 <div class="modal-actions">
+                     <button id="save-detail-button" class="button-filled" title="Save Changes (Ctrl+S)" disabled>
+                        <span class="material-symbols-outlined">save</span> Save
+                     </button>
+                     <button id="close-detail-button" class="icon-button close-button" title="Close Details (Esc)">
+                         <span class="material-symbols-outlined">close</span>
+                     </button>
+                 </div>
+             </div>
+             <div id="detail-file-summary"></div>
+             <div id="editor-container" class="code-container">
+                 <div id="editor-fallback" class="editor-fallback" style="display: none;">Loading Editor...</div>
+             </div>
+         </section>
+    </div>
+
+    <!-- External Libraries (Order Matters!) -->
+    <!-- ** LOAD LIBS THAT MIGHT CONFLICT WITH AMD FIRST ** -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- <script src="{{ url_for('static', filename='libs/highlight.min.js') }}"></script> -->
+    <script src="static/libs/highlight.min.js"></script>
+    <!-- ** LOAD MONACO LOADER *AFTER* OTHERS ** -->
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
+
+    <!-- ** LOAD YOUR APPLICATION SCRIPT *LAST* ** -->
+    <!-- <script src="{{ url_for('static', filename='js/script.js') }}"></script> -->
+    
+    <script src="static/js/script.js"></script>
+</body>
+</html>
