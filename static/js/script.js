@@ -1,21 +1,18 @@
 /**
  * script.js
  * Frontend logic for the Unknown Code Creator application.
- * Handles UI interactions, API calls, session management, Monaco Editor, and Supabase Auth.
  */
 document.addEventListener('DOMContentLoaded', async () => {
 
     // --- Configuration ---
-    // ** ENSURE this points to your BACKEND server URL, including protocol **
-    const API_BASE_URL = 'https://unknown-code-create.duckdns.org'; // Added default Flask port back for local testing/IP access
-    // If using HTTPS/Domain: const API_BASE_URL = 'https://api.yourdomain.com';
+    const API_BASE_URL = 'https://unknown-code-create.duckdns.org'; // Use HTTPS and your domain
     const SUPABASE_URL = 'https://qcrkovvvvbavgnzwvbpk.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFjcmtvdnZ2dmJhdmduend2YnBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUxNDU4MDMsImV4cCI6MjA2MDcyMTgwM30.XyeCRGKfy8Yx5DY0HKLFn7s4NDjWHScMpE1jnXb16Uw';
     const SELECTED_SESSION_ID_KEY = 'unknownCodeCreator_selectedSessionId';
-    const MONACO_CDN_BASE = 'https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min'; // Store CDN base path
+    const MONACO_CDN_BASE = 'https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min';
 
     // --- Get DOM Elements ---
-    // (Keep all element selections - unchanged)
+    // (Keep all element selections)
     const uploadForm = document.getElementById('upload-form');
     const projectZipInput = document.getElementById('project-zip-input');
     const uploadButtonLabel = document.querySelector('.file-upload-label');
@@ -86,8 +83,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     let librariesReady = { supabase: false, monacoLoader: false, marked: false, hljs: false };
 
     // --- Monaco Editor Base Environment ---
+    // Define getWorker - this needs to be global
     window.MonacoEnvironment = { /* ... same as before ... */
-        getWorkerUrl: function (moduleId, label) { let workerPath; if (label === 'json') { workerPath = 'vs/language/json/json.worker.js'; } else if (label === 'css' || label === 'scss' || label === 'less') { workerPath = 'vs/language/css/css.worker.js'; } else if (label === 'html' || label === 'handlebars' || label === 'razor') { workerPath = 'vs/language/html/html.worker.js'; } else if (label === 'typescript' || label === 'javascript') { workerPath = 'vs/language/typescript/ts.worker.js'; } else { workerPath = 'vs/editor/editor.worker.js'; } return `${MONACO_CDN_BASE}/${workerPath}`; }
+         getWorkerUrl: function (moduleId, label) { let workerPath; if (label === 'json') { workerPath = 'vs/language/json/json.worker.js'; } else if (label === 'css' || label === 'scss' || label === 'less') { workerPath = 'vs/language/css/css.worker.js'; } else if (label === 'html' || label === 'handlebars' || label === 'razor') { workerPath = 'vs/language/html/html.worker.js'; } else if (label === 'typescript' || label === 'javascript') { workerPath = 'vs/language/typescript/ts.worker.js'; } else { workerPath = 'vs/editor/editor.worker.js'; } return `${MONACO_CDN_BASE}/${workerPath}`; }
     };
 
     // --- Utility Functions ---
@@ -118,18 +116,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function handleLogout() { /* Check added */ if (!librariesReady.supabase || !supabaseClient) { showError("Auth service not ready.", true); return; } showLoading(true); try { const { error } = await supabaseClient.auth.signOut(); if (error) throw error; console.log('Logout successful'); } catch (error) { console.error('Logout Error:', error); showError(`Logout failed: ${error.message || '?'}`); } finally { showLoading(false); } }
 
     // --- API Fetch Wrapper ---
-        // --- API Fetch Wrapper ---
-    /** Wrapper for fetch requests to automatically include Supabase Auth token. */
     async function fetchWithAuth(endpoint, options = {}) {
         if (!librariesReady.supabase || !supabaseClient) {
             throw new Error("Authentication service is unavailable for API requests.");
         }
-
-        // ** Use URL constructor for robust joining **
-        // Ensure endpoint starts with "/" if it's meant to be relative to the base
-        const path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-        const url = new URL(path, API_BASE_URL).toString(); // Joins base and path correctly
-
+        // *** Use URL constructor for robust URL joining ***
+        const url = new URL(endpoint, API_BASE_URL).toString();
         console.log(`fetchWithAuth requesting: ${url}`); // Log the final URL
 
         let headers = { ...options.headers };
@@ -144,7 +136,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         try {
-            const response = await fetch(url, { ...options, headers }); // Use the constructed URL
+            const response = await fetch(url, { ...options, headers });
             if (!response.ok) {
                 let errorData = { error: `HTTP ${response.status}: ${response.statusText}`, status: response.status };
                 try { const jsonError = await response.json(); errorData = { ...errorData, ...jsonError }; }
@@ -170,8 +162,102 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function sendChatMessageAction() { /* Check added */ if (isLoading() || !currentUser || !currentSessionId || !librariesReady.supabase || !chatInput) return; const msg = chatInput.value.trim(); if (!msg) return; addChatMessage('user', msg); logEventLocally(currentUser.id, currentSessionId, "chat_sent", { msg: msg }); chatInput.value = ''; clearError(); showLoading(true); try { const data = await fetchWithAuth('/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ session_id: currentSessionId, message: msg }) }); if (!data || typeof data !== 'object' || data.error) { throw new Error(data?.error || "Invalid chat response."); } addChatMessage('assistant', data.response); logEventLocally(currentUser.id, currentSessionId, "chat_recv", { resp: data.response?.substring(0,100) }); } catch (error) { console.error('Chat Err:', error); addChatMessage('assistant', `Error: ${error.message}`); logEventLocally(currentUser.id, currentSessionId, "chat_error", { error: error.message }); } finally { showLoading(false); chatInput.focus(); } }
 
     // --- Monaco Editor Logic ---
-    function setupMonacoEditor(filePath, fileContent) { /* Check added */ if (!editorContainer || !editorFallback) return; if (!librariesReady.monacoLoader || typeof require === 'undefined') { console.error("Monaco Loader unavailable."); showError("Editor loader failed.", true); editorContainer.innerHTML = ''; editorFallback.textContent = `Error: Editor loader missing for ${escapeHtml(filePath)}.`; editorFallback.style.display = 'block'; return; } editorContainer.innerHTML = ''; editorFallback.textContent = 'Loading Editor...'; editorFallback.style.display = 'block'; require(['vs/editor/editor.main'], function (monacoInstance) { if (!editorContainer) return; editorFallback.style.display = 'none'; if (typeof monacoInstance === 'undefined' || typeof monacoInstance.editor === 'undefined') { console.error("Monaco main object invalid."); showError("Editor module failed load.", true); editorFallback.textContent = `Error: Editor core failed for ${escapeHtml(filePath)}.`; editorFallback.style.display = 'block'; return; } console.log("Monaco main loaded."); try { const language = getMonacoLanguageId(filePath); if (monacoEditor) { monacoEditor.dispose(); monacoEditor = null; } monacoEditor = monacoInstance.editor.create(editorContainer, { value: fileContent, language: language, theme: 'vs-dark', automaticLayout: true, fontSize: 14, minimap: { enabled: true }, wordWrap: 'on', scrollBeyondLastLine: false }); monacoEditor.getModel()?.onDidChangeContent(() => { if (!isLoading()) { hasUnsavedChanges = true; enableSessionControls(); } }); monacoEditor.addCommand(monacoInstance.KeyMod.CtrlCmd | monacoInstance.KeyCode.KeyS, () => { if (saveDetailButton && !saveDetailButton.disabled) handleSaveFile(); }); console.log(`Monaco created for: ${filePath}`); hasUnsavedChanges = false; enableSessionControls(); if(monacoEditor) monacoEditor.focus(); } catch (error) { console.error("Monaco setup error:", error); showError("Editor init failed.", true); editorFallback.textContent = `Error: Editor init failed for ${escapeHtml(filePath)}.`; editorFallback.style.display = 'block'; if (monacoEditor) { try { monacoEditor.dispose(); } catch (e){} } monacoEditor = null; } }, function (err) { console.error("RequireJS Monaco err:", err); showError("Editor core module failed.", true); if(editorFallback){ editorFallback.textContent = `Error: Could not load editor module for ${escapeHtml(filePath)}.`; editorFallback.style.display = 'block';} }); }
-    async function handleFileClick(filePath) { /* Check added */ if (isLoading() || !currentUser || !currentSessionId || !(filePath in currentFiles)) return; if (hasUnsavedChanges && currentEditingFile && currentEditingFile !== filePath) { if (!confirm("Discard unsaved changes?")) return; } clearError(); currentEditingFile = filePath; if(detailFileName) detailFileName.textContent = filePath; if(detailFileSummary) detailFileSummary.innerHTML = '<p><i>Loading...</i></p>'; if(editorFallback) {editorFallback.style.display='block'; editorFallback.textContent = 'Loading Editor...';} const fileContent = currentFiles[filePath] ?? "# Error: Content missing."; if(fileDetailOverlay) fileDetailOverlay.style.display = 'flex'; setupMonacoEditor(filePath, fileContent); showLoading(true); try { logEventLocally(currentUser.id, currentSessionId, "summary_req", { path: filePath }); const data = await fetchWithAuth('/summarize_file', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ session_id: currentSessionId, file_path: filePath }) }); if (!data || typeof data !== 'object' || data.error) { throw new Error(data?.error || "Invalid summary response."); } if(detailFileSummary) detailFileSummary.innerHTML = `<div class="markdown-content">${parseMarkdown(data.summary || "No summary.")}</div>`; logEventLocally(currentUser.id, currentSessionId, "summary_ok", { path: filePath }); } catch(error) { console.error("Summary err:", error); if(detailFileSummary) detailFileSummary.innerHTML = `<p class="error-message">Summary failed: ${escapeHtml(error.message)}</p>`; logEventLocally(currentUser.id, currentSessionId, "summary_err", { path: filePath, error: error.message }); } finally { showLoading(false); if (monacoEditor) { monacoEditor.updateOptions({ readOnly: isLoading() }); } enableSessionControls(); } }
+    /** Initializes or updates the Monaco Editor instance. */
+    function setupMonacoEditor(filePath, fileContent) {
+        // Check if essential DOM elements exist
+        if (!editorContainer || !editorFallback) {
+            console.error("Monaco Editor DOM elements missing.");
+            return;
+        }
+        // Check if Monaco loader ('require') is ready
+        if (!librariesReady.monacoLoader || typeof require === 'undefined') {
+            console.error("Monaco Loader (require) unavailable.");
+            showError("Code editor features unavailable (loader missing).", true);
+            editorContainer.innerHTML = ''; // Clear editor area
+            editorFallback.textContent = `Error: Editor loader failed for ${escapeHtml(filePath)}.`;
+            editorFallback.style.display = 'block';
+            return;
+        }
+
+        // Show loading state
+        editorContainer.innerHTML = '';
+        editorFallback.textContent = 'Loading Editor...';
+        editorFallback.style.display = 'block';
+
+        // Load the main editor module using require
+        require(['vs/editor/editor.main'], function (monacoInstance) {
+            if (!editorContainer) return; // Check if container still exists
+
+            // Robust check for the loaded monaco object
+            if (typeof monacoInstance === 'undefined' || typeof monacoInstance.editor === 'undefined') {
+                console.error("Monaco main object invalid after require.");
+                showError("Code editor module failed load.", true);
+                editorFallback.textContent = `Error: Editor core failed for ${escapeHtml(filePath)}. Check network.`;
+                editorFallback.style.display = 'block';
+                return;
+            }
+
+            // Successfully loaded main module, hide fallback
+            editorFallback.style.display = 'none';
+            console.log("Monaco main module loaded via require.");
+
+            try {
+                const language = getMonacoLanguageId(filePath);
+
+                // Dispose previous editor instance if exists
+                if (monacoEditor) {
+                    monacoEditor.dispose();
+                    monacoEditor = null;
+                    console.log("Disposed old editor instance.");
+                }
+
+                // Create new editor instance
+                monacoEditor = monacoInstance.editor.create(editorContainer, {
+                    value: fileContent,
+                    language: language,
+                    theme: 'vs-dark',
+                    automaticLayout: true,
+                    fontSize: 14,
+                    minimap: { enabled: true },
+                    wordWrap: 'on',
+                    scrollBeyondLastLine: false
+                });
+
+                // Add listeners
+                monacoEditor.getModel()?.onDidChangeContent(() => {
+                    if (!isLoading()) { // Avoid marking changed during initial load/update
+                        hasUnsavedChanges = true;
+                        enableSessionControls();
+                    }
+                });
+                monacoEditor.addCommand(monacoInstance.KeyMod.CtrlCmd | monacoInstance.KeyCode.KeyS, () => {
+                    if (saveDetailButton && !saveDetailButton.disabled) {
+                        handleSaveFile();
+                    }
+                });
+
+                console.log(`Monaco editor created for: ${filePath}`);
+                hasUnsavedChanges = false; // Reset flag
+                enableSessionControls(); // Update save button state
+                if (monacoEditor) monacoEditor.focus();
+
+            } catch (error) {
+                console.error("Monaco setup/update error inside require:", error);
+                showError("Code editor failed to initialize or update.", true);
+                editorFallback.textContent = `Error: Editor init failed for ${escapeHtml(filePath)}.`;
+                editorFallback.style.display = 'block';
+                if (monacoEditor) { try { monacoEditor.dispose(); } catch (e) {} } monacoEditor = null;
+            }
+        }, function (err) { // Error callback for require itself
+            console.error("RequireJS failed to load Monaco editor module:", err);
+            showError("Editor core module failed load (network/path?).", true);
+            if (editorFallback) {
+                editorFallback.textContent = `Error: Could not load editor module for ${escapeHtml(filePath)}. Check network/console.`;
+                editorFallback.style.display = 'block';
+            }
+        });
+    }
+    async function handleFileClick(filePath) { /* Check added */ if (isLoading() || !currentUser || !currentSessionId || !(filePath in currentFiles)) return; if (hasUnsavedChanges && currentEditingFile && currentEditingFile !== filePath) { if (!confirm("Discard unsaved changes?")) return; } clearError(); currentEditingFile = filePath; if(detailFileName) detailFileName.textContent = filePath; if(detailFileSummary) detailFileSummary.innerHTML = '<p><i>Loading...</i></p>'; if(editorFallback) editorFallback.style.display='block'; if(editorFallback) editorFallback.textContent = 'Loading Editor...'; const fileContent = currentFiles[filePath] ?? "# Error: Content missing."; if(fileDetailOverlay) fileDetailOverlay.style.display = 'flex'; setupMonacoEditor(filePath, fileContent); showLoading(true); try { logEventLocally(currentUser.id, currentSessionId, "summary_req", { path: filePath }); const data = await fetchWithAuth('/summarize_file', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ session_id: currentSessionId, file_path: filePath }) }); if (!data || typeof data !== 'object' || data.error) { throw new Error(data?.error || "Invalid summary response."); } if(detailFileSummary) detailFileSummary.innerHTML = `<div class="markdown-content">${parseMarkdown(data.summary || "No summary.")}</div>`; logEventLocally(currentUser.id, currentSessionId, "summary_ok", { path: filePath }); } catch(error) { console.error("Summary err:", error); if(detailFileSummary) detailFileSummary.innerHTML = `<p class="error-message">Summary failed: ${escapeHtml(error.message)}</p>`; logEventLocally(currentUser.id, currentSessionId, "summary_err", { path: filePath, error: error.message }); } finally { showLoading(false); if (monacoEditor) { monacoEditor.updateOptions({ readOnly: isLoading() }); } enableSessionControls(); } }
     async function handleSaveFile() { /* Check added */ if (!monacoEditor || !currentUser || !currentSessionId || !currentEditingFile || !hasUnsavedChanges || isLoading() || !librariesReady.supabase) return; const newContent = monacoEditor.getValue(); clearError(); showLoading(true); saveDetailButton.disabled = true; try { const data = await fetchWithAuth('/update_file', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ session_id: currentSessionId, file_path: currentEditingFile, new_content: newContent }) }); if (!data || typeof data !== 'object' || data.error) { throw new Error(data?.error || "Invalid save response."); } currentFiles[currentEditingFile] = newContent; hasUnsavedChanges = false; enableSessionControls(); logEventLocally(currentUser.id, currentSessionId, "file_saved", { path: currentEditingFile }); showError("File saved.", false); } catch (error) { console.error("Save Err:", error); showError(`Save failed: ${error.message}`, true); logEventLocally(currentUser.id, currentSessionId, "save_error", { path: currentEditingFile, error: error.message }); enableSessionControls(); } finally { showLoading(false); } }
     function closeFileDetailModal(force = false) { /* Check added */ if (!fileDetailOverlay) return; if (!force && hasUnsavedChanges) { if (!confirm("Unsaved changes. Close?")) return; } fileDetailOverlay.style.display = 'none'; currentEditingFile = null; hasUnsavedChanges = false; if (monacoEditor) { try { monacoEditor.dispose(); monacoEditor = null; if(editorContainer) editorContainer.innerHTML=''; if(editorFallback) editorFallback.style.display='none'; } catch(e) { console.error("Monaco dispose err:", e); } } enableSessionControls(); }
 
@@ -193,64 +279,27 @@ document.addEventListener('DOMContentLoaded', async () => {
         disableSessionControls(); updateUIBasedOnAuthState(null); updateUIBasedOnSessionState(false);
         if(uploadConfirmButton) { uploadConfirmButton.classList.add('hidden'); uploadConfirmButton.disabled = true; }
 
-        try {
-            await waitForLibraries(); // Wait for essential libs first
-            console.log("Library check passed.", librariesReady);
-        } catch (error) {
-            console.error("Init stopped: library timeout:", error); return; // Stop if critical libs failed
-        }
+        try { await waitForLibraries(); } catch (error) { console.error("Init stopped: library timeout:", error); return; } // Stop if critical libs failed
 
-        // Configure Monaco require path *after* loader is confirmed ready
+        // Configure Monaco require path only if loader is ready
         if (librariesReady.monacoLoader && typeof require === 'function') {
             try {
                 require.config({ paths: { 'vs': `${MONACO_CDN_BASE}/vs` }});
                 console.log("Monaco require path configured.");
-            } catch (e) {
-                console.error("Error configuring Monaco require path:", e);
-                showError("Failed to configure editor paths. Editor may fail.", true);
-                librariesReady.monacoLoader = false; // Mark as failed
-            }
-        } else if (!librariesReady.monacoLoader) {
-             showError("Warning: Code editor loader failed. Editing disabled.", false);
-        }
+            } catch(e) { console.error("Error configuring Monaco require path:", e); showError("Failed to configure editor paths.", true); librariesReady.monacoLoader = false; } // Mark as failed
+        } else { console.warn("Cannot configure Monaco path - loader not ready."); }
 
         // Initialize Supabase Client (if library loaded)
         if (librariesReady.supabase) {
             if (!SUPABASE_URL || !SUPABASE_ANON_KEY) { console.error("Supabase config missing!"); showError("Auth config missing.", true); return; }
-            try {
-                supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-                console.log("Supabase client initialized.");
-                if(loginButton) loginButton.disabled = false; if(signupButton) signupButton.disabled = false;
-            } catch (error) { console.error("Supabase init error:", error); showError("Auth service failed.", true); return; }
+            try { supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); console.log("Supabase client initialized."); if(loginButton) loginButton.disabled = false; if(signupButton) signupButton.disabled = false; } catch (error) { console.error("Supabase init error:", error); showError("Auth service failed.", true); return; }
         } else { console.error("Supabase library failed check. Auth disabled."); return; } // Stop if Supabase failed
 
-        // --- Setup Auth Listener ---
+        // Setup Auth Listener (only if supabaseClient is valid)
         if (supabaseClient) {
-            supabaseClient.auth.onAuthStateChange(async (event, session) => {
-                console.log('Auth State Change Event:', event, session?.user?.email || '(No session)');
-                const user = session?.user ?? null;
-                const previousUserId = currentUser?.id;
-                updateUIBasedOnAuthState(user);
-
-                if (user && (!previousUserId || previousUserId !== user.id)) {
-                    const lastSelectedId = localStorage.getItem(SELECTED_SESSION_ID_KEY);
-                    if (lastSelectedId) {
-                        console.log("Attempting reload last session:", lastSelectedId);
-                        setTimeout(async () => {
-                            const isValid = userSessions.some(s => s.session_id === lastSelectedId);
-                            if (isValid) { await loadSession(lastSelectedId); }
-                            else { console.log("Last session invalid."); localStorage.removeItem(SELECTED_SESSION_ID_KEY); updateUIBasedOnSessionState(false); }
-                        }, 200);
-                    } else { updateUIBasedOnSessionState(false); }
-                } else if (event === 'SIGNED_OUT') { console.log("User signed out."); }
-            });
-
+            supabaseClient.auth.onAuthStateChange(async (event, session) => { /* ... Same logic ... */ console.log('Auth State Change:', event, session?.user?.email); const user = session?.user ?? null; const previousUserId = currentUser?.id; updateUIBasedOnAuthState(user); if (user && (!previousUserId || previousUserId !== user.id)) { const lastSelectedId = localStorage.getItem(SELECTED_SESSION_ID_KEY); if (lastSelectedId) { console.log("Try reload last session:", lastSelectedId); setTimeout(async () => { const isValid = userSessions.some(s => s.session_id === lastSelectedId); if (isValid) { await loadSession(lastSelectedId); } else { console.log("Last session invalid."); localStorage.removeItem(SELECTED_SESSION_ID_KEY); updateUIBasedOnSessionState(false); } }, 200); } else { updateUIBasedOnSessionState(false); } } else if (event === 'SIGNED_OUT') { console.log("User signed out."); } });
             // Check initial auth state
-            try {
-                const { data: { session } } = await supabaseClient.auth.getSession();
-                console.log("Initial session check ok.");
-                updateUIBasedOnAuthState(session?.user ?? null);
-            } catch (error) { console.error("Error initial session check:", error); updateUIBasedOnAuthState(null); }
+            try { const { data: { session } } = await supabaseClient.auth.getSession(); console.log("Initial session check ok."); updateUIBasedOnAuthState(session?.user ?? null); } catch (error) { console.error("Error initial session check:", error); updateUIBasedOnAuthState(null); }
         }
 
         console.log("Initialization complete.");
@@ -258,22 +307,22 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- Add Event Listeners ---
     // (Keep all event listeners - unchanged)
-    loginForm.addEventListener('submit', handleLogin);
-    signupButton.addEventListener('click', handleSignup);
-    logoutButton.addEventListener('click', handleLogout);
-    uploadForm.addEventListener('submit', handleUploadSubmit);
-    startScratchButton?.addEventListener('click', () => handleStartNew(null));
-    startPythonButton?.addEventListener('click', () => handleStartNew(startPythonButton.dataset.template));
-    startWebButton?.addEventListener('click', () => handleStartNew(startWebButton.dataset.template));
-    requestButton.addEventListener('click', handleRequestChange);
-    chatSendButton.addEventListener('click', sendChatMessageAction);
-    chatInput.addEventListener('keypress', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMessageAction(); } });
-    haltButton.addEventListener('click', handleHalt);
-    downloadAllButton.addEventListener('click', () => handleDownload('all'));
-    downloadChangedButton.addEventListener('click', () => handleDownload('changed'));
-    saveDetailButton.addEventListener('click', handleSaveFile);
-    closeDetailButton.addEventListener('click', () => closeFileDetailModal());
-    fileDetailOverlay.addEventListener('click', (e) => { if (e.target === fileDetailOverlay) closeFileDetailModal(); });
+    if (loginForm) loginForm.addEventListener('submit', handleLogin);
+    if (signupButton) signupButton.addEventListener('click', handleSignup);
+    if (logoutButton) logoutButton.addEventListener('click', handleLogout);
+    if (uploadForm) uploadForm.addEventListener('submit', handleUploadSubmit);
+    if (startScratchButton) startScratchButton.addEventListener('click', () => handleStartNew(null));
+    if (startPythonButton) startPythonButton.addEventListener('click', () => handleStartNew(startPythonButton.dataset.template));
+    if (startWebButton) startWebButton.addEventListener('click', () => handleStartNew(startWebButton.dataset.template));
+    if (requestButton) requestButton.addEventListener('click', handleRequestChange);
+    if (chatSendButton) chatSendButton.addEventListener('click', sendChatMessageAction);
+    if (chatInput) chatInput.addEventListener('keypress', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMessageAction(); } });
+    if (haltButton) haltButton.addEventListener('click', handleHalt);
+    if (downloadAllButton) downloadAllButton.addEventListener('click', () => handleDownload('all'));
+    if (downloadChangedButton) downloadChangedButton.addEventListener('click', () => handleDownload('changed'));
+    if (saveDetailButton) saveDetailButton.addEventListener('click', handleSaveFile);
+    if (closeDetailButton) closeDetailButton.addEventListener('click', () => closeFileDetailModal());
+    if (fileDetailOverlay) fileDetailOverlay.addEventListener('click', (e) => { if (e.target === fileDetailOverlay) closeFileDetailModal(); });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && fileDetailOverlay?.style.display !== 'none') closeFileDetailModal(); });
     if (projectZipInput && uploadButtonLabelText && uploadConfirmButton) { projectZipInput.addEventListener('change', () => { if (projectZipInput.files.length > 0) { const filename = projectZipInput.files[0].name; if (uploadButtonLabelText) { uploadButtonLabelText.textContent = escapeHtml(filename); } if (uploadConfirmButton) { uploadConfirmButton.classList.remove('hidden'); uploadConfirmButton.disabled = isLoading() || !currentUser; } } else { if (uploadButtonLabelText) { uploadButtonLabelText.textContent = 'Upload Project (.zip)'; } if (uploadConfirmButton) { uploadConfirmButton.classList.add('hidden'); uploadConfirmButton.disabled = true; } } }); }
 

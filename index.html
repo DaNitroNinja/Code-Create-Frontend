@@ -16,8 +16,7 @@
     <!-- Main Stylesheet -->
     <link rel="stylesheet" href="static/css/style.css">
 
-    <!-- Monaco Editor Loader (Load this early in <head> as recommended by Monaco docs) -->
-    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
+    <!-- NO Monaco Loader script here -->
 
 </head>
 <body>
@@ -52,45 +51,44 @@
                 </div>
             </div>
 
-            <!-- Project Actions Section (Upload/Start New) -->
-             <div class="sidebar-section card" id="project-actions-section" style="display: none;"> <!-- Initially Hidden until logged in -->
-                <h2><span class="material-symbols-outlined">folder_open</span> New / Upload</h2>
-                <form id="upload-form">
+            <!-- Project Actions Section -->
+             <div class="sidebar-section card" id="project-actions-section" style="display: none;">
+                 <h2><span class="material-symbols-outlined">folder_open</span> New / Upload</h2>
+                 <form id="upload-form">
                     <label class="file-upload-label">
                         <span class="material-symbols-outlined">upload</span>
                         <span>Upload Project (.zip)</span>
                         <input type="file" id="project-zip-input" name="project_zip" accept=".zip" class="visually-hidden">
                     </label>
                     <button type="submit" class="button-filled hidden">Confirm Upload</button>
-                </form>
+                 </form>
                 <div class="start-new-options" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--md-sys-color-outline-variant);">
                     <h4><span class="material-symbols-outlined">post_add</span> Or Start New:</h4>
                     <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px;">
-                        <button id="start-scratch-button" class="button-outlined"><span class="material-symbols-outlined">add</span> Blank Project</button>
-                        <button id="start-python-button" class="button-outlined" data-template="python-app"><span class="material-symbols-outlined">code</span> Python App Template</button>
-                        <button id="start-web-button" class="button-outlined" data-template="web-app"><span class="material-symbols-outlined">web</span> Web App Template</button>
+                         <button id="start-scratch-button" class="button-outlined"><span class="material-symbols-outlined">add</span> Blank Project</button>
+                         <button id="start-python-button" class="button-outlined" data-template="python-app"><span class="material-symbols-outlined">code</span> Python App Template</button>
+                         <button id="start-web-button" class="button-outlined" data-template="web-app"><span class="material-symbols-outlined">web</span> Web App Template</button>
                     </div>
                 </div>
-                <p id="file-status" class="status-message"></p> <!-- Upload status message -->
+                <p id="file-status" class="status-message"></p>
             </div>
 
             <!-- User Sessions Section -->
-            <div class="sidebar-section card" id="user-sessions-section" style="display: none;"> <!-- Initially Hidden until logged in -->
+            <div class="sidebar-section card" id="user-sessions-section" style="display: none;">
                  <h2><span class="material-symbols-outlined">list</span> Your Sessions</h2>
                  <ul id="user-session-list" style="max-height: 200px; overflow-y: auto;"></ul>
                  <p id="session-list-status" class="status-message">Loading sessions...</p>
             </div>
 
-
             <!-- Timeline Section -->
-            <div class="sidebar-section card" id="timeline-section" style="display: none;"> <!-- Initially Hidden until session loaded -->
+            <div class="sidebar-section card" id="timeline-section" style="display: none;">
                 <h2><span class="material-symbols-outlined">history</span> Timeline</h2>
                 <ul id="timeline-log"></ul>
             </div>
 
-            <!-- Actions Section (Download/Halt) -->
-             <div class="sidebar-section card" id="session-actions-section" style="display: none;"> <!-- Initially Hidden until session loaded -->
-                <h2><span class="material-symbols-outlined">settings</span> Session Actions</h2>
+            <!-- Actions Section -->
+             <div class="sidebar-section card" id="session-actions-section" style="display: none;">
+                 <h2><span class="material-symbols-outlined">settings</span> Session Actions</h2>
                  <div class="action-buttons-container">
                     <button id="halt-button" class="button-danger" disabled>
                         <span class="material-symbols-outlined">pan_tool</span> Halt Process
@@ -111,7 +109,7 @@
         <!-- Main Content -->
         <main class="main-content">
             <h1><span class="material-symbols-outlined title-text" style="font-size: 2.5rem; vertical-align: bottom;">auto_awesome</span> <span class="title-text">Unknown Code Creator</span> <span class ="beta-badge">Alpha</span></h1>
-             <p id="session-id-display" class="status-message session-id"></p> <!-- Shows current session ID -->
+             <p id="session-id-display" class="status-message session-id"></p>
              <div id="error-display" class="error-message" style="display: none;">
                  <span class="material-symbols-outlined">error</span>
                  <span class="message-text"></span>
@@ -119,7 +117,7 @@
              <div id="loading-indicator" class="loading-indicator" style="display: none;">
                  <span class="material-symbols-outlined spin">progress_activity</span> Working...
              </div>
-             <div id="no-session-active" class="card" style="text-align: center; padding: 30px; display: none;"> <!-- Hidden initially -->
+             <div id="no-session-active" class="card" style="text-align: center; padding: 30px; display: none;">
                  Please log in and select a session, or upload/start a new project.
              </div>
              <div id="session-content-area" style="display: none;">
@@ -192,15 +190,17 @@
          </section>
     </div>
 
-    <!-- External Libraries (Loaded at the end of body) -->
-    <!-- Load libraries that don't depend on others first -->
+    <!-- External Libraries (Loaded at the end of body for better page load perception) -->
+    <!-- Load libraries that DON'T use AMD first -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script src="static/libs/highlight.min.js"></script>
-    <!-- Monaco Loader is already in <head> -->
+    <script src="static/libs/highlight.min.js"></script> <!-- Use relative path -->
+
+    <!-- Load Monaco Loader AFTER others, but BEFORE your script -->
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.44.0/min/vs/loader.js"></script>
 
     <!-- Load Your Application Script LAST -->
-    <script src="static/js/script.js"></script>
+    <script src="static/js/script.js"></script> <!-- Use relative path -->
 
 </body>
 </html>
