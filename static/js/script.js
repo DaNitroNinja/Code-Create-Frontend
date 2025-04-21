@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- Configuration ---
     // ** ENSURE this points to your BACKEND server URL, including protocol **
-    const API_BASE_URL = 'http://84.8.146.168:5001'; // Added default Flask port back for local testing/IP access
+    const API_BASE_URL = 'http://84.8.146.168:5000'; // Added default Flask port back for local testing/IP access
     // If using HTTPS/Domain: const API_BASE_URL = 'https://api.yourdomain.com';
     const SUPABASE_URL = 'https://qcrkovvvvbavgnzwvbpk.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFjcmtvdnZ2dmJhdmduend2YnBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUxNDU4MDMsImV4cCI6MjA2MDcyMTgwM30.XyeCRGKfy8Yx5DY0HKLFn7s4NDjWHScMpE1jnXb16Uw';
