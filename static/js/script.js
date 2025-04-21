@@ -118,13 +118,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function handleLogout() { /* Check added */ if (!librariesReady.supabase || !supabaseClient) { showError("Auth service not ready.", true); return; } showLoading(true); try { const { error } = await supabaseClient.auth.signOut(); if (error) throw error; console.log('Logout successful'); } catch (error) { console.error('Logout Error:', error); showError(`Logout failed: ${error.message || '?'}`); } finally { showLoading(false); } }
 
     // --- API Fetch Wrapper ---
+        // --- API Fetch Wrapper ---
+    /** Wrapper for fetch requests to automatically include Supabase Auth token. */
     async function fetchWithAuth(endpoint, options = {}) {
         if (!librariesReady.supabase || !supabaseClient) {
             throw new Error("Authentication service is unavailable for API requests.");
         }
 
-        // *** FIX: Use URL constructor for robust URL joining ***
-        const url = new URL(endpoint, API_BASE_URL).toString();
+        // ** Use URL constructor for robust joining **
+        // Ensure endpoint starts with "/" if it's meant to be relative to the base
+        const path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+        const url = new URL(path, API_BASE_URL).toString(); // Joins base and path correctly
+
         console.log(`fetchWithAuth requesting: ${url}`); // Log the final URL
 
         let headers = { ...options.headers };
@@ -139,7 +144,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         try {
-            const response = await fetch(url, { ...options, headers });
+            const response = await fetch(url, { ...options, headers }); // Use the constructed URL
             if (!response.ok) {
                 let errorData = { error: `HTTP ${response.status}: ${response.statusText}`, status: response.status };
                 try { const jsonError = await response.json(); errorData = { ...errorData, ...jsonError }; }
