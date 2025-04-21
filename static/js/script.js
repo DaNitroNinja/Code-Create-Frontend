@@ -8,7 +8,7 @@
 document.addEventListener('DOMContentLoaded', async () => {
 
     // --- Configuration ---
-    const API_BASE_URL = '84.8.146.168'; // <<< ENSURE THIS MATCHES YOUR FLASK SERVER PORT
+    const API_BASE_URL = 'http://84.8.146.168'; // <<< ENSURE THIS MATCHES YOUR FLASK SERVER PORT
     const SUPABASE_URL = 'https://qcrkovvvvbavgnzwvbpk.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFjcmtvdnZ2dmJhdmduend2YnBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUxNDU4MDMsImV4cCI6MjA2MDcyMTgwM30.XyeCRGKfy8Yx5DY0HKLFn7s4NDjWHScMpE1jnXb16Uw';
     const SELECTED_SESSION_ID_KEY = 'unknownCodeCreator_selectedSessionId';
